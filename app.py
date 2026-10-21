@@ -14,14 +14,20 @@ SCOPE = [
 ]
 SPREADSHEET_ID = "1pwKuo_CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
 
-# Autenticação
+# Autenticação — funciona no computador e na nuvem
 @st.cache_resource
 def get_google_sheets():
-    with open("credenciais.json") as f:
-        credentials_dict = json.load(f)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPE)
-    client = gspread.authorize(creds)
-    return client.open_by_key(SPREADSHEET_ID)
+    try:
+        credentials_dict = st.secrets["gcp_service_account"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPE)
+        client = gspread.authorize(creds)
+        return client
+    except:
+        with open("credenciais.json") as f:
+            credentials_dict = json.load(f)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPE)
+        client = gspread.authorize(creds)
+        return client
 
 try:
     planilha = get_google_sheets()
@@ -125,8 +131,9 @@ with aba1:
         with col1:
             st.metric("Total de Itens", len(df_prod))
         with col2:
-            total_qtd = pd.to_numeric(df_prod["quantidade"], errors="coerce").sum()
-            st.metric("Quantidade Total", int(total_qtd) if total_qtd else 0)
+            df_prod["quantidade"] = pd.to_numeric(df_prod["quantidade"], errors="coerce")
+            total_qtd = df_prod["quantidade"].sum()
+            st.metric("Quantidade Total", int(total_qtd) if pd.notna(total_qtd) else 0)
         with col3:
             locais_unicos = df_prod["local"].nunique() if "local" in df_prod.columns else 0
             st.metric("Locais Diferentes", locais_unicos)
