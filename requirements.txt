@@ -1,4 +1,5 @@
-streamlit>=1.38.0
-supabase>=2.13.0
-python-dotenv>=1.0.0
-pandas>=2.0.0
+streamlit
+pandas
+gspread
+oauth2client
+python-dotenv
