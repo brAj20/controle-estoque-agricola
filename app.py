@@ -12,7 +12,7 @@ SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
-SPREADSHEET_ID = "1pwKuo_CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
+SPREADSHEET_ID = "1pwKuo-CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
 
 # Autenticação — funciona no computador e na nuvem
 @st.cache_resource
@@ -113,7 +113,7 @@ st.title("📦 Controle de Estoque — Defensivos Agrícolas")
 st.success(f"✅ Conectado como: {'Administrador' if st.session_state.nivel == 'admin' else 'Consulta'} | Dados salvos na Planilha Google")
 
 aba1, aba2, aba3, aba4, aba5 = st.tabs([
-    "📋 Estoque", "➕ Adicionar", "✏️ Saída/Editar", "📊 Histórico", "⚠️ Alertas"
+    "📋 Estoque", "➕ Adicionar", "✏️ Saída", "📊 Histórico", "⚠️ Alertas"
 ])
 
 # -----------------------------------------------------------------------------
@@ -138,7 +138,7 @@ with aba1:
             locais_unicos = df_prod["local"].nunique() if "local" in df_prod.columns else 0
             st.metric("Locais Diferentes", locais_unicos)
     else:
-        st.info("📭 Nenhum produto cadastrado ainda. Vá em 'Adicionar Produto'")
+        st.info("📭 Nenhum produto cadastrado ainda. Vá em 'Adicionar'")
 
 # -----------------------------------------------------------------------------
 # ABA 2 — ADICIONAR PRODUTO
@@ -186,16 +186,14 @@ with aba2:
                     
                     df_prod = pd.concat([df_prod, pd.DataFrame([novo_prod])], ignore_index=True)
                     if salvar_aba("Produtos", df_prod):
-                        registrar_historico(
-                            "ENTRADA", nome, quantidade, unidade, local, responsavel, observacao, novo_id
-                        )
-                        st.success(f"✅ *{nome}* cadastrado e salvo na planilha!")
+                        registrar_historico("ENTRADA", nome, quantidade, unidade, local, responsavel, observacao, novo_id)
+                        st.success(f"✅ *{nome}* cadastrado com sucesso!")
                         st.rerun()
                 else:
                     st.error("❌ Preencha o nome e o responsável")
 
 # -----------------------------------------------------------------------------
-# ABA 3 — SAÍDA / EDITAL
+# ABA 3 — SAÍDA
 # -----------------------------------------------------------------------------
 with aba3:
     if st.session_state.nivel != "admin":
@@ -211,7 +209,7 @@ with aba3:
             col1, col2 = st.columns(2)
             with col1:
                 st.info(f"Estoque atual: *{dados_prod['quantidade']} {dados_prod['unidade']}*")
-                qtd_saida = st.number_input("Quantidade de Saída", min_value=1, step=1, 
+                qtd_saida = st.number_input("Quantidade de Saída", min_value=1, step=1,
                                            max_value=int(dados_prod["quantidade"]))
             with col2:
                 responsavel_saida = st.text_input("Quem está retirando?")
@@ -224,11 +222,9 @@ with aba3:
                     df_prod.at[idx, "quantidade"] = qtd_anterior - int(qtd_saida)
                     
                     if salvar_aba("Produtos", df_prod):
-                        registrar_historico(
-                            "SAÍDA", prod_selecionado, qtd_saida, dados_prod["unidade"],
-                            dados_prod["local"], responsavel_saida, obs_saida, dados_prod["id"]
-                        )
-                        st.success(f"✅ Saída registrada! Restam: {df_prod.at[idx, 'quantidade']} {dados_prod['unidade']} — atualizado na planilha!")
+                        registrar_historico("SAÍDA", prod_selecionado, qtd_saida, dados_prod["unidade"],
+                                          dados_prod["local"], responsavel_saida, obs_saida, dados_prod["id"])
+                        st.success(f"✅ Saída registrada! Restam: {df_prod.at[idx, 'quantidade']} {dados_prod['unidade']}")
                         st.rerun()
                 else:
                     st.error("❌ Informe quem está retirando")
@@ -274,6 +270,6 @@ with aba5:
 # RODAPÉ
 # -----------------------------------------------------------------------------
 st.divider()
-if st.button("🚪 Sair"):
+if st.button("🚪 Sair", use_container_width=True):
     st.session_state.autenticado = False
     st.rerun()
