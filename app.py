@@ -26,11 +26,13 @@ CACHE_PRODUTOS = os.path.join(PASTA_CACHE, "produtos.json")
 CACHE_HISTORICO = os.path.join(PASTA_CACHE, "historico.json")
 CACHE_LOCAIS = os.path.join(PASTA_CACHE, "locais.json")
 
+# Caminho do logo
+LOGO_PATH = "logo.png"
+
 # -----------------------------------------------------------------------------
 # FUNÇÕES DE CACHE — GUARDA DADOS PARA VER SEM INTERNET
 # -----------------------------------------------------------------------------
 def salvar_cache(dados, caminho):
-    """Salva dados localmente para visualização offline"""
     try:
         with open(caminho, 'w', encoding='utf-8') as f:
             json.dump(dados, f, ensure_ascii=False, default=str)
@@ -39,7 +41,6 @@ def salvar_cache(dados, caminho):
         return False
 
 def carregar_cache(caminho):
-    """Carrega os últimos dados salvos quando não há internet"""
     try:
         if os.path.exists(caminho):
             with open(caminho, 'r', encoding='utf-8') as f:
@@ -53,7 +54,6 @@ def carregar_cache(caminho):
 # -----------------------------------------------------------------------------
 @st.cache_resource(show_spinner="Conectando ao sistema...")
 def conectar_sistema():
-    """Tenta conectar na nuvem, se não conseguir avisa que está offline"""
     try:
         creds_dict = st.secrets["gcp_service_account"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
@@ -65,10 +65,19 @@ def conectar_sistema():
 cliente, online = conectar_sistema()
 
 # -----------------------------------------------------------------------------
+# FUNÇÃO PARA EXIBIR LOGO
+# -----------------------------------------------------------------------------
+def exibir_logo(tamanho=80):
+    """Exibe o logo se existir, senão mostra um ícone padrão"""
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=tamanho)
+    else:
+        st.markdown("# 🌿")
+
+# -----------------------------------------------------------------------------
 # FUNÇÕES DE LEITURA E GRAVAÇÃO INTELIGENTES
 # -----------------------------------------------------------------------------
 def ler_dados(nome_aba, cache_arquivo):
-    """Lê da nuvem se possível, senão mostra os últimos dados salvos"""
     if online:
         try:
             planilha = cliente.open(NOME_PLANILHA)
@@ -86,7 +95,6 @@ def ler_dados(nome_aba, cache_arquivo):
     return pd.DataFrame()
 
 def salvar_dados(nome_aba, df, cache_arquivo):
-    """Salva na nuvem e sempre salva localmente como backup"""
     dados_lista = df.to_dict('records') if not df.empty else []
     salvar_cache(dados_lista, cache_arquivo)
     
@@ -104,7 +112,6 @@ def salvar_dados(nome_aba, df, cache_arquivo):
     return False, "📴 Salvo no aparelho. Sincronização pendente."
 
 def registrar_historico_completo(tipo, produto, qtd, unidade, local, resp, obs="", id_prod=""):
-    """Registra movimentação com data e hora automáticas"""
     df_hist = ler_dados("Historico", CACHE_HISTORICO)
     nova_entrada = {
         "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -123,27 +130,35 @@ def registrar_historico_completo(tipo, produto, qtd, unidade, local, resp, obs="
 # -----------------------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Controle de Estoque", layout="wide", page_icon="📦")
+st.set_page_config(page_title="Estoque Defensivo", layout="wide", page_icon="🌿")
 
 # -----------------------------------------------------------------------------
 # SISTEMA DE LOGIN COM LEMBRANÇA AUTOMÁTICA
 # -----------------------------------------------------------------------------
 def verificar_sessao():
-    """Verifica se o usuário já entrou e se quer ser lembrado"""
     if "logado" in st.session_state and st.session_state.logado:
         return True
     return False
 
 # TELA DE LOGIN
 if not verificar_sessao():
-    st.title("🔐 Controle de Estoque — Defensivos Agrícolas")
-    st.subheader("Acesse o sistema")
-    
-    senha = st.text_input("Digite sua senha:", type="password")
-    lembrar = st.checkbox("Lembrar meu acesso neste aparelho")
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Logo centralizado na tela de login
+        logo_col, tit_col = st.columns([1, 4])
+        with logo_col:
+            exibir_logo(90)
+        with tit_col:
+            st.title("Estoque Defensivo")
+            st.subheader("Controle de Estoque Agrícola")
+        
+        st.markdown("---")
+        
+        senha = st.text_input("Digite sua senha:", type="password")
+        lembrar = st.checkbox("Lembrar meu acesso neste aparelho")
+        
         if st.button("Entrar", use_container_width=True, type="primary"):
             if senha == SENHA_ADMIN:
                 st.session_state.logado = True
@@ -157,18 +172,26 @@ if not verificar_sessao():
                 st.rerun()
             else:
                 st.error("❌ Senha incorreta! Tente novamente.")
-    
-    st.info("💡 Marque 'Lembrar meu acesso' para não precisar digitar senha na próxima vez")
+        
+        st.info("💡 Marque 'Lembrar meu acesso' para não precisar digitar senha na próxima vez")
     st.stop()
 
 # -----------------------------------------------------------------------------
-# ÁREA PRINCIPAL DO SISTEMA
+# ÁREA PRINCIPAL DO SISTEMA — COM LOGO NO CABEÇALHO
 # -----------------------------------------------------------------------------
-st.title("📦 Controle de Estoque — Defensivos Agrícolas")
+# Cabeçalho com logo
+logo_col, tit_col = st.columns([1, 6])
+with logo_col:
+    exibir_logo(65)
+with tit_col:
+    st.title("Estoque Defensivo")
+    st.caption("Controle de Estoque de Defensivos Agrícolas")
+
+st.markdown("---")
 
 # Status da conexão
 status = "✅ Online — dados atualizados em tempo real" if online else "📴 Modo offline — mostrando última atualização"
-st.success(f"Conectado como: {st.session_state.usuario} | {status}")
+st.success(f"Conectado como: *{st.session_state.usuario}* | {status}")
 
 # MENU DE ABAS
 aba_estoque, aba_adicionar, aba_saida, aba_historico, aba_alertas = st.tabs([
@@ -299,7 +322,6 @@ with aba_historico:
     if not df_hist.empty:
         st.dataframe(df_hist.sort_values("data", ascending=False), use_container_width=True, hide_index=True)
         
-        # Botão para baixar o histórico em Excel
         csv = df_hist.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar Histórico Completo", csv, "historico_estoque.csv", 
                           "text/csv", use_container_width=True)
@@ -332,7 +354,7 @@ with aba_alertas:
 # RODAPÉ
 # -----------------------------------------------------------------------------
 st.divider()
-st.caption(f"Sistema de Controle de Estoque | Última sincronização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+st.caption(f"Sistema Estoque Defensivo | Última sincronização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
 if st.button("🚪 Sair da conta", use_container_width=True):
     for chave in list(st.session_state.keys()):
