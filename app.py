@@ -13,6 +13,7 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive"
 ]
 SPREADSHEET_ID = "1pwKuo-CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
+NOME_PLANILHA = "Controle de Estoque"  # ← confere se é o nome certo da sua planilha!
 
 # Autenticação — funciona no computador e na nuvem
 @st.cache_resource
@@ -20,19 +21,16 @@ def get_google_sheets():
     try:
         credentials_dict = st.secrets["gcp_service_account"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPE)
-        client = gspread.authorize(creds)
-        return client
-    except:
-        with open("credenciais.json") as f:
-            credentials_dict = json.load(f)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPE)
-        client = gspread.authorize(creds)
-        return client
+        cliente = gspread.authorize(creds)
+        return cliente
+    except Exception as e:
+        st.error(f"Erro de autenticação: {e}")
+        st.stop()
 
 try:
-    planilha = get_google_sheets()
+    cliente = get_google_sheets()
 except Exception as e:
-    st.error(f"Erro de conexão com a planilha: {e}")
+    st.error(f"Erro de conexão: {e}")
     st.stop()
 
 # Senhas
@@ -72,6 +70,7 @@ if not st.session_state.autenticado:
 # -----------------------------------------------------------------------------
 def ler_aba(nome_aba):
     try:
+        planilha = cliente.open(NOME_PLANILHA)
         aba = planilha.worksheet(nome_aba)
         dados = aba.get_all_records()
         return pd.DataFrame(dados)
@@ -81,6 +80,7 @@ def ler_aba(nome_aba):
 
 def salvar_aba(nome_aba, df):
     try:
+        planilha = cliente.open(NOME_PLANILHA)
         aba = planilha.worksheet(nome_aba)
         aba.clear()
         if not df.empty:
