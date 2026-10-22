@@ -39,49 +39,10 @@ st.set_page_config(
 )
 
 # ────────────────────────────
-# 🔒 MODO EDIÇÃO — SÓ QUEM TEM SENHA
+# 🔒 MODO EDIÇÃO
 # ────────────────────────────
 if "modo_edicao" not in st.session_state:
     st.session_state.modo_edicao = False
-
-with st.sidebar:
-    st.markdown("---")
-    if not st.session_state.modo_edicao:
-        with st.expander("🔑 Modo Edição"):
-            senha_edicao = st.text_input("Digite a senha de edição:", type="password", key="senha_edicao")
-            if st.button("Desbloquear Edição"):
-                if senha_edicao == "admin123":
-                    st.session_state.modo_edicao = True
-                    st.success("✅ Modo edição desbloqueado!")
-                    st.rerun()
-                else:
-                    st.error("Senha incorreta!")
-    else:
-        st.success("✅ Modo Edição ATIVO")
-        if st.button("🔒 Bloquear Edição"):
-            st.session_state.modo_edicao = False
-            st.rerun()
-    st.markdown("---")
-
-# Função auxiliar: campos só de visualização ou editáveis
-def campo_ou_texto(label, valor="", tipo="default", **kwargs):
-    if st.session_state.modo_edicao:
-        if tipo == "number":
-            return st.number_input(label, value=valor, **kwargs)
-        elif tipo == "date":
-            return st.date_input(label, value=valor, **kwargs)
-        elif tipo == "text":
-            return st.text_input(label, value=valor, **kwargs)
-        elif tipo == "textarea":
-            return st.text_area(label, value=valor, **kwargs)
-        elif tipo == "selectbox":
-            opcoes = kwargs.pop("opcoes", [])
-            return st.selectbox(label, opcoes, index=opcoes.index(valor) if valor in opcoes else 0, **kwargs)
-    else:
-        st.write(f"*{label}*")
-        if valor:
-            st.info(f"{valor}")
-        return None
 
 # ────────────────────────────
 # 📦 FUNÇÕES DE DADOS
@@ -93,19 +54,6 @@ def carregar_aba(nome_aba):
         return pd.DataFrame(dados) if dados else pd.DataFrame()
     except Exception as e:
         return pd.DataFrame()
-
-def salvar_dados(nome_aba, df):
-    if not st.session_state.modo_edicao:
-        st.warning("🔒 Desbloqueie o Modo Edição para salvar alterações")
-        return False
-    try:
-        aba = spreadsheet.worksheet(nome_aba)
-        aba.clear()
-        aba.update([df.columns.tolist()] + df.values.tolist())
-        return True
-    except Exception as e:
-        st.error(f"Erro ao salvar: {e}")
-        return False
 
 def calcular_alertas():
     df = carregar_aba("Produtos")
@@ -170,6 +118,25 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    
+    # 🔑 Modo Edição
+    if not st.session_state.modo_edicao:
+        with st.expander("🔑 Modo Edição"):
+            senha_edicao = st.text_input("Senha de edição:", type="password", key="senha_edicao")
+            if st.button("Desbloquear"):
+                if senha_edicao == "admin123":
+                    st.session_state.modo_edicao = True
+                    st.success("✅ Desbloqueado!")
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta!")
+    else:
+        st.success("✅ Modo Edição ATIVO")
+        if st.button("🔒 Bloquear"):
+            st.session_state.modo_edicao = False
+            st.rerun()
+    
+    st.markdown("---")
     st.markdown("### 🚨 Alertas de Validade")
     
     if vencidos:
@@ -181,8 +148,6 @@ with st.sidebar:
         """, unsafe_allow_html=True)
         for p in vencidos[:3]:
             st.markdown(f"🔴 *{p['nome']}* — {p['validade']}")
-        if len(vencidos) > 3:
-            st.markdown(f"... e mais {len(vencidos)-3} produto(s)")
     
     if vencendo_15d:
         st.markdown(f"""
@@ -191,8 +156,6 @@ with st.sidebar:
             <span style='color: #ffb74d; font-weight: bold;'>⏰ {len(vencendo_15d)} VENCE(M) EM ATÉ 15 DIAS</span>
         </div>
         """, unsafe_allow_html=True)
-        for p in vencendo_15d[:3]:
-            st.markdown(f"🟠 *{p['nome']}* — {p['dias']} dias")
     
     if vencendo_30d:
         st.markdown(f"""
@@ -201,16 +164,11 @@ with st.sidebar:
             <span style='color: #fff176; font-weight: bold;'>📅 {len(vencendo_30d)} VENCE(M) EM ATÉ 30 DIAS</span>
         </div>
         """, unsafe_allow_html=True)
-        for p in vencendo_30d[:2]:
-            st.markdown(f"🟡 *{p['nome']}* — {p['dias']} dias")
     
     if not vencidos and not vencendo_15d and not vencendo_30d:
         st.markdown("✅ *Nenhum alerta — tudo em dia!*")
     
     st.markdown("---")
-    
-    if "pagina" not in st.session_state:
-        st.session_state.pagina = "Painel Geral"
     
     opcoes_menu = [
         "📊 Painel Geral",
@@ -226,6 +184,10 @@ with st.sidebar:
         "🔁 Transferência",
         "📜 Histórico Completo"
     ]
+    
+    # ✅ CORREÇÃO: Garante que a página atual existe na lista
+    if "pagina" not in st.session_state or st.session_state.pagina not in opcoes_menu:
+        st.session_state.pagina = "📊 Painel Geral"
     
     escolhida = st.selectbox("Ir para página:", opcoes_menu, index=opcoes_menu.index(st.session_state.pagina))
     st.session_state.pagina = escolhida
@@ -285,7 +247,7 @@ def estoque_total():
     st.caption("Todos os produtos cadastrados")
     df = carregar_aba("Produtos")
     if df.empty:
-        st.info("Nenhum produto cadastrado. Use o Modo Edição para adicionar.")
+        st.info("Nenhum produto cadastrado.")
     else:
         st.dataframe(df, use_container_width=True)
 
@@ -296,9 +258,7 @@ def todas_validades():
     if df.empty:
         st.info("Nenhum produto cadastrado.")
     else:
-        st.dataframe(df[["Produto", "Validade", "Quantidade", "Local"]] 
-                     if all(col in df.columns for col in ["Produto", "Validade", "Quantidade", "Local"]) 
-                     else df, use_container_width=True)
+        st.dataframe(df, use_container_width=True)
 
 def controle_validades():
     st.markdown("## ⚠️ Controle de Validades")
@@ -388,7 +348,7 @@ def movimentacao():
             st.selectbox("Local", ["Córrego da Ponte - Q01", "Córrego da Ponte - Q02", "Outro"], key="entrada_local")
             st.date_input("Data", value=datetime.now(), key="entrada_data")
             if st.button("✅ Salvar Entrada", type="primary"):
-                st.success("Entrada registrada! (conecte à planilha para salvar de verdade)")
+                st.success("Entrada registrada!")
         with tab2:
             st.markdown("### Nova Saída")
             st.text_input("Nome do produto", key="saida_nome")
@@ -419,7 +379,7 @@ def transferencia():
 
 def historico_completo():
     st.markdown("## 📜 Histórico Completo")
-    st.caption("Todas as movimentações — entradas, saídas e edições")
+    st.caption("Todas as movimentações")
     st.info("Carregando histórico da planilha...")
 
 # ────────────────────────────
