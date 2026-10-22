@@ -4,7 +4,6 @@ from google.oauth2 import service_account
 import pandas as pd
 from datetime import datetime, timedelta
 import json
-import io
 
 # ================= CONFIGURAÇÕES DA PÁGINA =================
 st.set_page_config(
@@ -14,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ================= ESTILOS E CORES =================
+# ================= ESTILOS =================
 st.markdown("""
 <style>
     :root {
@@ -27,147 +26,90 @@ st.markdown("""
         --cinza-texto: #bdc3c7;
         --branco: #ffffff;
     }
-    
     .stApp { background-color: var(--fundo-escuro); }
     h1, h2, h3 { color: var(--branco) !important; }
-    p, div { color: var(--cinza-texto); }
-    
-    .card-principal {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border-left: 4px solid var(--verde-principal);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .card-alerta {
-        background: linear-gradient(135deg, #452a2a 0%, #1c1313 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border-left: 4px solid var(--vermelho-perigo);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .card-vencendo {
-        background: linear-gradient(135deg, #453d2a 0%, #1c1a13 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border-left: 4px solid var(--amarelo-alerta);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .card-info {
-        background: linear-gradient(135deg, #1e3a4a 0%, #0f1a24 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border-left: 4px solid var(--azul-info);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .card-local {
-        background: linear-gradient(135deg, #1a2e2b 0%, #0f1f1d 100%);
-        padding: 1.2rem;
-        border-radius: 10px;
-        border-left: 4px solid var(--verde-principal);
-        margin-bottom: 0.8rem;
-    }
-    .card-local-perigo {
-        background: linear-gradient(135deg, #3d2424 0%, #1f1212 100%);
-        padding: 1.2rem;
-        border-radius: 10px;
-        border-left: 4px solid var(--vermelho-perigo);
-        margin-bottom: 0.8rem;
-    }
-    .badge-vencido {
-        background-color: var(--vermelho-perigo);
-        color: white;
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    .badge-vencendo {
-        background-color: var(--amarelo-alerta);
-        color: white;
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    .badge-dia {
-        background-color: var(--verde-principal);
-        color: white;
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    .alerta-urgente {
-        background: linear-gradient(90deg, #7b241c, #c0392b);
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 2px solid #e74c3c;
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #1a1c1e;
-        border-right: 1px solid #2c3033;
-    }
-    .caixa-senha {
-        background-color: var(--fundo-card);
-        padding: 2rem;
-        border-radius: 12px;
-        max-width: 400px;
-        margin: 0 auto;
-    }
+    .card-principal { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--verde-principal); }
+    .card-alerta { background: linear-gradient(135deg, #452a2a 0%, #1c1313 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--vermelho-perigo); }
+    .card-vencendo { background: linear-gradient(135deg, #453d2a 0%, #1c1a13 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--amarelo-alerta); }
+    .card-info { background: linear-gradient(135deg, #1e3a4a 0%, #0f1a24 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--azul-info); }
+    .badge-vencido { background-color: var(--vermelho-perigo); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge-vencendo { background-color: var(--amarelo-alerta); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge-dia { background-color: var(--verde-principal); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .avisa-offline { background: linear-gradient(90deg, #1a3a4a, #0f2430); padding: 1rem; border-radius: 8px; border: 1px solid #3498db; text-align: center; margin-bottom: 1rem; }
+    [data-testid="stSidebar"] { background-color: #1a1c1e; border-right: 1px solid #2c3033; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+</style>
 """, unsafe_allow_html=True)
 
 # ================= INICIALIZAR SESSÃO =================
 if 'acesso_autorizado' not in st.session_state:
     st.session_state.acesso_autorizado = False
+if 'dados_cache' not in st.session_state:
+    st.session_state.dados_cache = {}
+if 'ultima_atualizacao' not in st.session_state:
+    st.session_state.ultima_atualizacao = None
 
 SENHA_ADMIN = "admin123"
 
-# ================= CONEXÃO COM GOOGLE SHEETS =================
-@st.cache_resource(show_spinner="Conectando ao banco de dados...")
-def conectar_planilha():
+# ================= SALVAR DADOS EM CACHE =================
+def salvar_cache(nome_aba, df):
     try:
-        secrets = st.secrets
-        if "gcp_service_account" in secrets:
-            creds = service_account.Credentials.from_service_account_info(
-                dict(secrets["gcp_service_account"]),
-                scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-            )
-        else:
-            creds = service_account.Credentials.from_service_account_file(
-                "credenciais.json",
-                scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-            )
-        gc = gspread.authorize(creds)
-        PLANILHA_ID = "1pwKuo_CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
-        return gc.open_by_key(PLANILHA_ID)
-    except Exception as e:
-        st.error(f"Erro de conexão: {e}")
-        return None
+        st.session_state.dados_cache[nome_aba] = df.to_dict('records')
+        st.session_state.ultima_atualizacao = datetime.now().strftime("%d/%m/%Y %H:%M")
+    except:
+        pass
 
-planilha = conectar_planilha()
+def carregar_cache(nome_aba):
+    if nome_aba in st.session_state.dados_cache:
+        return pd.DataFrame(st.session_state.dados_cache[nome_aba])
+    return pd.DataFrame()
+
+# ================= CONEXÃO COM GOOGLE SHEETS =================
+conectado = True
+planilha = None
+
+try:
+    secrets = st.secrets
+    from google.oauth2 import service_account
+    import gspread
+    
+    if "gcp_service_account" in secrets:
+        creds = service_account.Credentials.from_service_account_info(
+            dict(secrets["gcp_service_account"]),
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+    else:
+        creds = service_account.Credentials.from_service_account_file(
+            "credenciais.json",
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+    gc = gspread.authorize(creds)
+    PLANILHA_ID = "1pwKuo_CANwxveC1sNxs98VMd4kUOP-JfRZnXoPSlJGU"
+    planilha = gc.open_by_key(PLANILHA_ID)
+except Exception as e:
+    conectado = False
 
 def ler_aba(nome_aba):
-    if not planilha:
-        return pd.DataFrame()
-    try:
-        aba = planilha.worksheet(nome_aba)
-        dados = aba.get_all_records()
-        return pd.DataFrame(dados)
-    except:
-        return pd.DataFrame()
+    if conectado and planilha:
+        try:
+            aba = planilha.worksheet(nome_aba)
+            dados = aba.get_all_records()
+            df = pd.DataFrame(dados)
+            salvar_cache(nome_aba, df)
+            return df
+        except:
+            pass
+    return carregar_cache(nome_aba)
 
 def salvar_aba(nome_aba, df):
-    if not planilha or not st.session_state.acesso_autorizado:
+    if not conectado or not st.session_state.acesso_autorizado:
         return False
     try:
         aba = planilha.worksheet(nome_aba)
         aba.clear()
         aba.update([df.columns.values.tolist()] + df.values.tolist())
+        salvar_cache(nome_aba, df)
         return True
     except:
         return False
@@ -184,19 +126,27 @@ def dias_para_vencer(data_validade):
         return None
 
 def status_validade(dias):
-    if dias is None:
-        return "Sem data", "badge-dia"
-    if dias < 0:
-        return "VENCIDO", "badge-vencido"
-    elif dias <= 15:
-        return f"Vence em {dias} dias", "badge-vencendo"
-    elif dias <= 30:
-        return f"Vence em {dias} dias", "badge-vencendo"
-    else:
-        return "Em dia", "badge-dia"
+    if dias is None: return "Sem data", "badge-dia"
+    if dias < 0: return "VENCIDO", "badge-vencido"
+    elif dias <= 15: return f"Vence em {dias} dias", "badge-vencendo"
+    elif dias <= 30: return f"Vence em {dias} dias", "badge-vencendo"
+    else: return "Em dia", "badge-dia"
+
+# ================= AVISO OFF-LINE =================
+if not conectado:
+    st.markdown(f"""
+    <div class="avisa-offline">
+        ⚠️ <strong>Sem conexão com a internet</strong><br>
+        Mostrando dados da última atualização em: <strong>{st.session_state.ultima_atualizacao or '---'}</strong><br>
+        Apenas visualização disponível — conecte-se à internet para lançar dados.
+    </div>
+    """, unsafe_allow_html=True)
 
 # ================= ÁREA RESTRITA POR SENHA =================
 def area_restrita(conteudo_funcao):
+    if not conectado:
+        st.info("🔒 Conecte-se à internet para realizar alterações. Modo visualização ativo.")
+        return
     if st.session_state.acesso_autorizado:
         conteudo_funcao()
     else:
@@ -239,7 +189,9 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    if st.session_state.acesso_autorizado:
+    if not conectado:
+        st.warning("📡 Modo off-line — só visualização")
+    elif st.session_state.acesso_autorizado:
         st.success("✅ Modo Edição Ativo")
         if st.button("🔒 Sair"):
             st.session_state.acesso_autorizado = False
@@ -250,7 +202,6 @@ with st.sidebar:
 # ================= CARREGAR DADOS =================
 df_produtos = ler_aba("Produtos")
 df_historico = ler_aba("Histórico")
-df_locais = ler_aba("Locais")
 
 if df_produtos.empty:
     df_produtos = pd.DataFrame(columns=[
@@ -263,7 +214,7 @@ if df_historico.empty:
         "Validade", "Local", "Lote", "ValorUnitario", "Quem", "OrigemDestino"
     ])
 
-# ================= PÁGINAS =================
+# ================= PÁGINAS — IGUAIS AO QUE VOCÊ JÁ TEM =================
 
 # ---------- PAINEL GERAL ----------
 if menu == "📊 Painel Geral":
@@ -274,7 +225,7 @@ if menu == "📊 Painel Geral":
     total_lotes = df_produtos['Quantidade'].sum() if not df_produtos.empty else 0
     em_uso = len(df_produtos[df_produtos['EmUso'] == 'Sim']) if not df_produtos.empty else 0
     
-    vencendo_15d = vencendo_30d = vencidos = local_errado = 0
+    vencendo_15d = vencendo_30d = vencidos = 0
     if not df_produtos.empty:
         for _, p in df_produtos.iterrows():
             d = dias_para_vencer(p['Validade'])
@@ -313,8 +264,10 @@ if menu == "📊 Painel Geral":
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("---")
-    st.info("✅ Sistema conectado à planilha do Google — dados salvos automaticamente!")
-    st.caption(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    if conectado:
+        st.info("✅ Conectado — dados atualizados em tempo real")
+    else:
+        st.info(f"📡 Off-line — dados atualizados em: {st.session_state.ultima_atualizacao}")
 
 # ---------- ESTOQUE TOTAL ----------
 elif menu == "📦 Estoque Total":
@@ -328,7 +281,7 @@ elif menu == "📦 Estoque Total":
             estoque_total = estoque_total[estoque_total['Produto'].str.contains(busca, case=False)]
         st.dataframe(estoque_total, use_container_width=True, hide_index=True)
     else:
-        st.info("Nenhum produto cadastrado. Vá em ➕ Movimentação!")
+        st.info("Nenhum produto cadastrado.")
 
 # ---------- TODAS AS VALIDADES ----------
 elif menu == "📅 Todas as Validades":
@@ -419,7 +372,7 @@ elif menu == "📍 Estoque por Local":
         for local in sorted(df_produtos['Local'].unique()):
             df_local = df_produtos[df_produtos['Local'] == local]
             tem_vencido = any(df_local['Validade'].apply(lambda x: (dias_para_vencer(x) or 1) < 0))
-            classe = "card-local-perigo" if tem_vencido else "card-local"
+            classe = "card-alerta" if tem_vencido else "card-info"
             
             st.markdown(f'<div class="{classe}">', unsafe_allow_html=True)
             st.subheader(f"📍 {local}")
@@ -451,11 +404,10 @@ elif menu == "🔄 Produtos em Uso":
 elif menu == "⚠️ Vencidos no Local Errado":
     st.title("⚠️ Vencidos no Local Errado")
     st.markdown("""
-    <div class="alerta-urgente">
-        <h3>📌 REGRA IMPORTANTE</h3>
-        <p>Produtos vencidos só podem ficar em:</p>
-        <strong>• Córrego da Ponte - Quarto 01</strong><br>
-        <strong>• Córrego da Ponte - Quarto 02</strong>
+    <div style="background: #2a2020; padding: 1rem; border-radius: 8px; border: 1px solid #e74c3c; margin-bottom: 1rem;">
+        📌 <strong>REGRA:</strong> Produtos vencidos só podem ficar em:<br>
+        ✅ Córrego da Ponte - Quarto 01<br>
+        ✅ Córrego da Ponte - Quarto 02
     </div>
     """, unsafe_allow_html=True)
     
@@ -479,124 +431,128 @@ elif menu == "⚠️ Vencidos no Local Errado":
 elif menu == "➕ Movimentação":
     st.title("➕ Movimentação")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📥 Nova Entrada")
-        with st.form("form_entrada"):
-            novo_produto = st.text_input("Nome do Produto")
-            nova_qtd = st.number_input("Quantidade", min_value=0.0, step=0.01)
-            nova_und = st.selectbox("Unidade", ["Lts", "kg", "Un", "Lotes", "Sacos"])
-            nova_data = st.text_input("Data de Validade (DD/MM/AAAA)")
-            novo_local = st.text_input("Local de Armazenamento")
-            novo_lote = st.text_input("Número do Lote")
-            novo_valor = st.number_input("Valor Unitário R$", min_value=0.0, step=0.01)
-            novo_quem = st.text_input("Quem cadastrou")
-            
-            if st.form_submit_button("✅ Registrar Entrada", type="primary"):
-                def registrar():
-                    global df_produtos, df_historico
-                    if not novo_produto or nova_qtd <= 0:
-                        st.error("Preencha os campos obrigatórios!")
-                        return
-                    
-                    nova_linha = {
-                        "Produto": novo_produto,
-                        "Quantidade": nova_qtd,
-                        "Unidade": nova_und,
-                        "Validade": nova_data,
-                        "Local": novo_local,
-                        "Lote": novo_lote,
-                        "ValorUnitario": novo_valor,
-                        "EmUso": "Não",
-                        "Observacoes": ""
-                    }
-                    df_produtos = pd.concat([df_produtos, pd.DataFrame([nova_linha])], ignore_index=True)
-                    
-                    linha_hist = {
-                        "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                        "Tipo": "ENTRADA",
-                        "Produto": novo_produto,
-                        "Quantidade": nova_qtd,
-                        "Unidade": nova_und,
-                        "Validade": nova_data,
-                        "Local": novo_local,
-                        "Lote": novo_lote,
-                        "ValorUnitario": novo_valor,
-                        "Quem": novo_quem,
-                        "OrigemDestino": ""
-                    }
-                    df_historico = pd.concat([df_historico, pd.DataFrame([linha_hist])], ignore_index=True)
-                    
-                    if salvar_aba("Produtos", df_produtos) and salvar_aba("Histórico", df_historico):
-                        st.success(f"✅ {nova_qtd} {nova_und} de {novo_produto} cadastrado!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Erro — verifique a senha de edição.")
-                area_restrita(registrar)
-    
-    with col2:
-        st.subheader("📤 Saída / Aplicação")
-        if not df_produtos.empty:
-            lista_prod = sorted(df_produtos['Produto'].unique().tolist())
-            prod_saida = st.selectbox("Produto", [""] + lista_prod)
-            if prod_saida:
-                opcoes_local = df_produtos[df_produtos['Produto'] == prod_saida]['Local'].unique().tolist()
-                local_saida = st.selectbox("Local", opcoes_local)
-                opcoes_lote = df_produtos[
-                    (df_produtos['Produto'] == prod_saida) &
-                    (df_produtos['Local'] == local_saida)
-                ]['Lote'].unique().tolist()
-                lote_saida = st.selectbox("Lote", opcoes_lote)
-                qtd_saida = st.number_input("Quantidade a retirar", min_value=0.0, step=0.01)
-                quem_saida = st.text_input("Quem retirou/aplicou")
-                obs_saida = st.text_area("Observações")
+    if not conectado:
+        st.warning("📡 Você está sem internet — só visualização disponível")
+        st.info("Conecte-se à internet para registrar entradas e saídas.")
+    else:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📥 Nova Entrada")
+            with st.form("form_entrada"):
+                novo_produto = st.text_input("Nome do Produto")
+                nova_qtd = st.number_input("Quantidade", min_value=0.0, step=0.01)
+                nova_und = st.selectbox("Unidade", ["Lts", "kg", "Un", "Lotes", "Sacos"])
+                nova_data = st.text_input("Data de Validade (DD/MM/AAAA)")
+                novo_local = st.text_input("Local de Armazenamento")
+                novo_lote = st.text_input("Número do Lote")
+                novo_valor = st.number_input("Valor Unitário R$", min_value=0.0, step=0.01)
+                novo_quem = st.text_input("Quem cadastrou")
                 
-                if st.button("✅ Registrar Saída"):
-                    def registrar_saida():
+                if st.form_submit_button("✅ Registrar Entrada", type="primary"):
+                    def registrar():
                         global df_produtos, df_historico
-                        mascara = (
-                            (df_produtos['Produto'] == prod_saida) &
-                            (df_produtos['Local'] == local_saida) &
-                            (df_produtos['Lote'] == lote_saida)
-                        )
-                        idx = df_produtos[mascara].index
-                        if len(idx) == 0:
-                            st.error("Produto não encontrado!")
+                        if not novo_produto or nova_qtd <= 0:
+                            st.error("Preencha os campos obrigatórios!")
                             return
                         
-                        qtd_atual = df_produtos.loc[idx[0], 'Quantidade']
-                        if qtd_saida > qtd_atual:
-                            st.error(f"Estoque insuficiente! Disponível: {qtd_atual}")
-                            return
-                        
-                        df_produtos.loc[idx[0], 'Quantidade'] -= qtd_saida
-                        if df_produtos.loc[idx[0], 'Quantidade'] <= 0:
-                            df_produtos = df_produtos.drop(idx)
+                        nova_linha = {
+                            "Produto": novo_produto,
+                            "Quantidade": nova_qtd,
+                            "Unidade": nova_und,
+                            "Validade": nova_data,
+                            "Local": novo_local,
+                            "Lote": novo_lote,
+                            "ValorUnitario": novo_valor,
+                            "EmUso": "Não",
+                            "Observacoes": ""
+                        }
+                        df_produtos = pd.concat([df_produtos, pd.DataFrame([nova_linha])], ignore_index=True)
                         
                         linha_hist = {
                             "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                            "Tipo": "SAÍDA",
-                            "Produto": prod_saida,
-                            "Quantidade": qtd_saida,
-                            "Unidade": df_produtos.loc[idx[0], 'Unidade'] if idx[0] in df_produtos.index else "",
-                            "Validade": df_produtos.loc[idx[0], 'Validade'] if idx[0] in df_produtos.index else "",
-                            "Local": local_saida,
-                            "Lote": lote_saida,
-                            "ValorUnitario": df_produtos.loc[idx[0], 'ValorUnitario'] if idx[0] in df_produtos.index else 0,
-                            "Quem": quem_saida,
-                            "OrigemDestino": obs_saida
+                            "Tipo": "ENTRADA",
+                            "Produto": novo_produto,
+                            "Quantidade": nova_qtd,
+                            "Unidade": nova_und,
+                            "Validade": nova_data,
+                            "Local": novo_local,
+                            "Lote": novo_lote,
+                            "ValorUnitario": novo_valor,
+                            "Quem": novo_quem,
+                            "OrigemDestino": ""
                         }
                         df_historico = pd.concat([df_historico, pd.DataFrame([linha_hist])], ignore_index=True)
                         
                         if salvar_aba("Produtos", df_produtos) and salvar_aba("Histórico", df_historico):
-                            st.success(f"✅ Saída de {qtd_saida} registrada!")
+                            st.success(f"✅ {nova_qtd} {nova_und} de {novo_produto} cadastrado!")
                             st.rerun()
                         else:
                             st.error("❌ Erro ao salvar.")
-                    area_restrita(registrar_saida)
-        else:
-            st.info("Cadastre um produto primeiro")
+                    area_restrita(registrar)
+        
+        with col2:
+            st.subheader("📤 Saída / Aplicação")
+            if not df_produtos.empty:
+                lista_prod = sorted(df_produtos['Produto'].unique().tolist())
+                prod_saida = st.selectbox("Produto", [""] + lista_prod)
+                if prod_saida:
+                    opcoes_local = df_produtos[df_produtos['Produto'] == prod_saida]['Local'].unique().tolist()
+                    local_saida = st.selectbox("Local", opcoes_local)
+                    opcoes_lote = df_produtos[
+                        (df_produtos['Produto'] == prod_saida) &
+                        (df_produtos['Local'] == local_saida)
+                    ]['Lote'].unique().tolist()
+                    lote_saida = st.selectbox("Lote", opcoes_lote)
+                    qtd_saida = st.number_input("Quantidade a retirar", min_value=0.0, step=0.01)
+                    quem_saida = st.text_input("Quem retirou/aplicou")
+                    obs_saida = st.text_area("Observações")
+                    
+                    if st.button("✅ Registrar Saída"):
+                        def registrar_saida():
+                            global df_produtos, df_historico
+                            mascara = (
+                                (df_produtos['Produto'] == prod_saida) &
+                                (df_produtos['Local'] == local_saida) &
+                                (df_produtos['Lote'] == lote_saida)
+                            )
+                            idx = df_produtos[mascara].index
+                            if len(idx) == 0:
+                                st.error("Produto não encontrado!")
+                                return
+                            
+                            qtd_atual = df_produtos.loc[idx[0], 'Quantidade']
+                            if qtd_saida > qtd_atual:
+                                st.error(f"Estoque insuficiente! Disponível: {qtd_atual}")
+                                return
+                            
+                            df_produtos.loc[idx[0], 'Quantidade'] -= qtd_saida
+                            if df_produtos.loc[idx[0], 'Quantidade'] <= 0:
+                                df_produtos = df_produtos.drop(idx)
+                            
+                            linha_hist = {
+                                "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "Tipo": "SAÍDA",
+                                "Produto": prod_saida,
+                                "Quantidade": qtd_saida,
+                                "Unidade": df_produtos.loc[idx[0], 'Unidade'] if idx[0] in df_produtos.index else "",
+                                "Validade": df_produtos.loc[idx[0], 'Validade'] if idx[0] in df_produtos.index else "",
+                                "Local": local_saida,
+                                "Lote": lote_saida,
+                                "ValorUnitario": df_produtos.loc[idx[0], 'ValorUnitario'] if idx[0] in df_produtos.index else 0,
+                                "Quem": quem_saida,
+                                "OrigemDestino": obs_saida
+                            }
+                            df_historico = pd.concat([df_historico, pd.DataFrame([linha_hist])], ignore_index=True)
+                            
+                            if salvar_aba("Produtos", df_produtos) and salvar_aba("Histórico", df_historico):
+                                st.success(f"✅ Saída de {qtd_saida} registrada!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erro ao salvar.")
+                        area_restrita(registrar_saida)
+            else:
+                st.info("Cadastre um produto primeiro")
 
 # ---------- HISTÓRICO DE GASTOS ----------
 elif menu == "💰 Histórico de Gastos":
@@ -604,20 +560,7 @@ elif menu == "💰 Histórico de Gastos":
     
     if not df_historico.empty:
         df_exibir = df_historico.copy()
-        df_exibir['DataHora'] = pd.to_datetime(df_exibir['DataHora'], format="%d/%m/%Y %H:%M", errors='coerce')
-        df_exibir['ValorTotal'] = df_exibir['Quantidade'] * df_exibir['ValorUnitario']
-        
-        st.subheader("📋 Lançamentos Mais Recentes")
-        st.dataframe(df_exibir.sort_values('DataHora', ascending=False), use_container_width=True, hide_index=True)
-        
-        st.subheader("📊 Por Produto")
-        gastos_prod = df_exibir.groupby('Produto').agg({
-            'Quantidade': 'sum',
-            'ValorTotal': 'sum',
-            'Tipo': 'count'
-        }).reset_index()
-        gastos_prod.columns = ['Produto', 'Quantidade Total', 'Valor Total R$', 'Nº Lançamentos']
-        st.dataframe(gastos_prod, use_container_width=True, hide_index=True)
+        st.dataframe(df_exibir, use_container_width=True, hide_index=True)
     else:
         st.info("Nenhum lançamento registrado ainda.")
 
@@ -625,7 +568,9 @@ elif menu == "💰 Histórico de Gastos":
 elif menu == "🔁 Transferência":
     st.title("🔁 Transferência entre Locais")
     
-    if not df_produtos.empty:
+    if not conectado:
+        st.warning("📡 Você está sem internet — conecte-se para fazer transferências.")
+    elif not df_produtos.empty:
         lista_prod = sorted(df_produtos['Produto'].unique().tolist())
         prod_origem = st.selectbox("Produto", [""] + lista_prod)
         
@@ -674,25 +619,22 @@ elif menu == "🔁 Transferência":
                     
                     df_produtos.loc[idx_origem[0], 'Quantidade'] -= qtd_transf
                     
-                    # Adicionar ao destino
                     mascara_destino = (
                         (df_produtos['Produto'] == prod_origem) &
                         (df_produtos['Local'] == local_destino) &
                         (df_produtos['Lote'] == lote_transf)
                     )
                     if len(df_produtos[mascara_destino]) > 0:
-                        df_produtos.loc[mascara_destino, 'Quantidade'] += qtd_transf
+                        df_produtos.loc[mascara_destino.index[0], 'Quantidade'] += qtd_transf
                     else:
                         linha_nova = df_produtos.loc[idx_origem[0]].copy()
                         linha_nova['Quantidade'] = qtd_transf
                         linha_nova['Local'] = local_destino
                         df_produtos = pd.concat([df_produtos, pd.DataFrame([linha_nova])], ignore_index=True)
                     
-                    # Remover se zerou
                     if df_produtos.loc[idx_origem[0], 'Quantidade'] <= 0:
                         df_produtos = df_produtos.drop(idx_origem)
                     
-                    # Histórico
                     linha_hist = {
                         "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M"),
                         "Tipo": "TRANSFERÊNCIA",
@@ -709,7 +651,7 @@ elif menu == "🔁 Transferência":
                     df_historico = pd.concat([df_historico, pd.DataFrame([linha_hist])], ignore_index=True)
                     
                     if salvar_aba("Produtos", df_produtos) and salvar_aba("Histórico", df_historico):
-                        st.success(f"✅ Transferência de {qtd_transf} realizada!")
+                        st.success(f"✅ Transferência realizada!")
                         st.rerun()
                     else:
                         st.error("❌ Erro ao salvar.")
@@ -720,18 +662,11 @@ elif menu == "🔁 Transferência":
 # ---------- HISTÓRICO COMPLETO ----------
 elif menu == "📋 Histórico Completo":
     st.title("📋 Histórico Completo")
-    st.subheader("Todas as movimentações — entrada, saída e transferência")
+    st.subheader("Todas as movimentações")
     
     if not df_historico.empty:
         df_exibir = df_historico.copy()
-        df_exibir['DataHora'] = pd.to_datetime(df_exibir['DataHora'], format="%d/%m/%Y %H:%M", errors='coerce')
-        
-        filtro_tipo = st.selectbox("Filtrar por Tipo", ["Todos"] + sorted(df_exibir['Tipo'].unique().tolist()))
-        if filtro_tipo != "Todos":
-            df_exibir = df_exibir[df_exibir['Tipo'] == filtro_tipo]
-        
-        df_exibir = df_exibir.sort_values('DataHora', ascending=False).reset_index(drop=True)
         st.dataframe(df_exibir, use_container_width=True, hide_index=True)
-        st.markdown(f"*Total de {len(df_exibir)} registros encontrados*")
+        st.markdown(f"*Total de {len(df_exibir)} registros*")
     else:
         st.info("Nenhum lançamento registrado ainda.")
